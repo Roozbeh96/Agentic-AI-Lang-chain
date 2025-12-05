@@ -83,5 +83,7 @@ Since Langchain is
 To orchestrate the flow, I used LangGraph to define nodes.
 Inside each node, depending on what the task requires, I use either an LLM (via LangChain) or an MCP tool — and an MCP tool can internally call APIs, databases, or even run a RAG pipeline.
 
+Firt we start with defining the `app` object. The app is build by the function `build_graph`. The input of this function is 
+
 <img src="Fig/AIStack3.jpeg" alt="AIStack" width="100%"/><br>
 <img src="Fig/AIStack4.jpeg" alt="AIStack" width="100%"/><br>

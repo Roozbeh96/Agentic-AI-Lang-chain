@@ -1,4 +1,4 @@
-from utils.base_func import read_transform
+from src.agentic_ai_lang_chain.utils.base_func import read_transform, AgentState, build_graph
 import os
 import pandas as pd
 from langchain_ollama import ChatOllama
@@ -14,25 +14,38 @@ path = os.path.abspath(
 )
 
 engine = read_transform(file_path=path)
-test_df = pd.read_sql('SELECT * FROM online_retail_table LIMIT 5', con=engine)
 
 
 db = SQLDatabase(engine)
 tables = db.get_usable_table_names()
 
-llm = ChatOllama(
+
+# llm = ChatOllama(
+#     model="llama3.1",
+#     temperature=0.0,  # deterministic SQL
+# )
+
+# db_chain = SQLDatabaseChain.from_llm(
+#     llm=llm,
+#     db=db,
+#     verbose=True,  # so you can see SQL it generates
+# )
+
+# question = "How many rows are there in my_table?"
+# answer = db_chain.run(question)
+# print(answer)
+
+
+app = build_graph()
+
+
+router_llm = ChatOllama(
     model="llama3.1",
-    temperature=0.0,  # deterministic SQL
+    temperature=0.0,  # deterministic for classification
 )
 
-
-
-db_chain = SQLDatabaseChain.from_llm(
-    llm=llm,
-    db=db,
-    verbose=True,  # so you can see SQL it generates
+FIXED_REJECTION_MESSAGE = (
+    "I can not answer to this question right now. "
+    "Maybe in future updates I will be able of answering your question."
 )
 
-question = "How many rows are there in my_table?"
-answer = db_chain.run(question)
-print(answer)

@@ -1,30 +1,38 @@
-import pandas as pd
-from sqlalchemy import create_engine
-import os
+
 from typing import Literal, TypedDict, Optional
+
+from langchain_ollama import ChatOllama
 from langgraph.graph import StateGraph, END
 
 
-def read_transform(*, file_path:str) -> pd.DataFrame:
-    if 'online_retail_database.db' in os.listdir(file_path):
-        return create_engine('sqlite:///data/online_retail_database.db')
-    else:
-        print('Starting to read and transform the data...')
-        file_path = os.path.join(file_path, 'online_retail_II.xlsx')
-        df = pd.read_excel(file_path, sheet_name = None)
-        df = pd.concat(df.values(), ignore_index=True)
+# ----------------------
+# 1. Define the state
+# ----------------------
 
-        engine = create_engine('sqlite:///data/online_retail_database.db')
-        df.to_sql('online_retail_table', con=engine, if_exists='replace', index=False)
-        
-        print('Transformation complete.')
-        return engine
-    
 class AgentState(TypedDict):
     question: str
     route: Optional[Literal["sql", "reject"]]
     answer: Optional[str]
-    
+
+
+# ----------------------
+# 2. LLM for routing
+# ----------------------
+
+router_llm = ChatOllama(
+    model="llama3.1",
+    temperature=0.0,  # deterministic for classification
+)
+
+FIXED_REJECTION_MESSAGE = (
+    "I can not answer to this question right now. "
+    "Maybe in future updates I will be able of answering your question."
+)
+
+
+# ----------------------
+# 3. First node: classifier
+# ----------------------
 
 def classify_question_node(state: AgentState) -> AgentState:
     """Decide if the question is SQL-related or general."""
@@ -58,6 +66,11 @@ def classify_question_node(state: AgentState) -> AgentState:
 
     return state
 
+
+# ----------------------
+# 4. Second node: placeholder for SQL logic
+# ----------------------
+
 def sql_node(state: AgentState) -> AgentState:
     """
     Placeholder: here you will later plug in your text-to-SQL logic
@@ -68,6 +81,11 @@ def sql_node(state: AgentState) -> AgentState:
     state["answer"] = f"[SQL NODE] I would now run a SQL query for: {question}"
     return state
 
+
+# ----------------------
+# 5. Conditional edge function
+# ----------------------
+
 def route_decision(state: AgentState) -> str:
     """
     Decide where to go next based on state['route'].
@@ -77,6 +95,11 @@ def route_decision(state: AgentState) -> str:
         return "sql_node"
     # default: reject → end of graph
     return END
+
+
+# ----------------------
+# 6. Build the graph
+# ----------------------
 
 def build_graph():
     graph = StateGraph(AgentState)
@@ -103,3 +126,32 @@ def build_graph():
     graph.add_edge("sql_node", END)
 
     return graph.compile()
+
+
+# ----------------------
+# 7. Simple test harness
+# ----------------------
+
+
+app = build_graph()
+
+# Example 1: general question
+state_in: AgentState = {
+    "question": "Who is the president of the United States?",
+    "route": None,
+    "answer": None,
+}
+result = app.invoke(state_in)
+print("GENERAL QUESTION RESULT:")
+print(result["answer"])
+print("-" * 50)
+
+# Example 2: SQL-related question
+state_in2: AgentState = {
+    "question": "What is the average revenue of customers in table_1?",
+    "route": None,
+    "answer": None,
+}
+result2 = app.invoke(state_in2)
+print("SQL QUESTION RESULT:")
+print(result2["answer"])
